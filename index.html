@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduPulse - College Attendance Management System</title>
+
+  <!-- Google Fonts: Outfit & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dark-theme">
+  <!-- Application Container -->
+  <div id="app" class="app-container">
+    
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+      <div class="brand">
+        <div class="logo-icon">
+          <i data-lucide="graduation-cap"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">EduPulse</span>
+          <span class="brand-tagline">Attendance System</span>
+        </div>
+      </div>
+
+      <!-- Role & Context Controls -->
+      <div class="nav-controls">
+        <!-- Role Switcher Pill -->
+        <div class="role-switcher">
+          <button id="role-faculty-btn" class="role-btn active" onclick="switchRole('faculty')">
+            <i data-lucide="shield-user"></i> Faculty Portal
+          </button>
+          <button id="role-student-btn" class="role-btn" onclick="switchRole('student')">
+            <i data-lucide="user-check"></i> Student Portal
+          </button>
+        </div>
+
+        <!-- Student Selector (Shown in Student View) -->
+        <div id="student-selector-wrapper" class="student-select-container hidden">
+          <label for="active-student-select"><i data-lucide="user"></i> View As:</label>
+          <select id="active-student-select" onchange="changeActiveStudent(this.value)">
+            <!-- Options populated dynamically -->
+          </select>
+        </div>
+
+        <!-- Reset Data & Quick Actions -->
+        <div class="header-actions">
+          <button class="btn btn-icon btn-ghost" title="Reset Demo Data" onclick="resetDatabase()">
+            <i data-lucide="rotate-ccw"></i>
+          </button>
+          <button class="btn btn-icon btn-ghost" title="Toggle Theme" onclick="toggleTheme()">
+            <i data-lucide="moon" id="theme-icon"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="main-content">
+      
+      <!-- ======================================================= -->
+      <!-- FACULTY PORTAL SECTION                                  -->
+      <!-- ======================================================= -->
+      <section id="faculty-section" class="portal-section">
+        
+        <!-- Faculty Sub-header Navigation -->
+        <div class="portal-header">
+          <div class="portal-title">
+            <h2>Faculty Management Hub</h2>
+            <p class="subtitle">Mark daily attendance, edit past logs, manage student rosters, & track performance</p>
+          </div>
+
+          <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="mark-tab" onclick="switchFacultyTab('mark-tab')">
+              <i data-lucide="check-square"></i> Mark Attendance
+            </button>
+            <button class="tab-btn" data-tab="edit-tab" onclick="switchFacultyTab('edit-tab')">
+              <i data-lucide="edit-3"></i> Edit Past Logs
+            </button>
+            <button class="tab-btn" data-tab="roster-tab" onclick="switchFacultyTab('roster-tab')">
+              <i data-lucide="users"></i> Student Roster
+            </button>
+            <button class="tab-btn" data-tab="analytics-tab" onclick="switchFacultyTab('analytics-tab')">
+              <i data-lucide="bar-chart-3"></i> Class Analytics
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 1: MARK DAILY ATTENDANCE -->
+        <div id="mark-tab" class="tab-pane active">
+          <div class="glass-card filter-toolbar">
+            <div class="filter-group">
+              <div class="field">
+                <label><i data-lucide="book-open"></i> Course / Subject</label>
+                <select id="faculty-course-select" onchange="renderMarkAttendanceTable()">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="field">
+                <label><i data-lucide="calendar"></i> Session Date</label>
+                <input type="date" id="faculty-date-input" onchange="renderMarkAttendanceTable()" />
+              </div>
+            </div>
+
+            <div class="batch-actions">
+              <span class="batch-label">Quick Actions:</span>
+              <button class="btn btn-sm btn-outline-success" onclick="markAllBatch('Present')">
+                <i data-lucide="check"></i> All Present
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="markAllBatch('Absent')">
+                <i data-lucide="x"></i> All Absent
+              </button>
+              <button class="btn btn-sm btn-outline-warning" onclick="markAllBatch('Late')">
+                <i data-lucide="clock"></i> All Late
+              </button>
+            </div>
+          </div>
+
+          <!-- Roster Search & Count Bar -->
+          <div class="toolbar-secondary">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="mark-search-input" placeholder="Search by name or roll number..." oninput="filterMarkTable()" />
+            </div>
+            <div class="summary-stats-bar">
+              <span class="stat-pill present-pill" id="stat-present-count">Present: 0</span>
+              <span class="stat-pill absent-pill" id="stat-absent-count">Absent: 0</span>
+              <span class="stat-pill late-pill" id="stat-late-count">Late: 0</span>
+              <span class="stat-pill excused-pill" id="stat-excused-count">Excused: 0</span>
+            </div>
+          </div>
+
+          <!-- Attendance Marking Table -->
+          <div class="glass-card table-card">
+            <div class="table-responsive">
+              <table class="custom-table" id="mark-attendance-table">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Dept</th>
+                    <th>Current Overall %</th>
+                    <th class="text-center">Status Selection</th>
+                    <th>Remarks</th>
+                  </tr>
+                </thead>
+                <tbody id="mark-table-body">
+                  <!-- Dynamic Rows -->
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="table-footer">
+              <div class="info-text">
+                <i data-lucide="info"></i> Select status for each student and click "Save & Submit Attendance"
+              </div>
+              <button class="btn btn-primary btn-lg" onclick="saveCurrentAttendance()">
+                <i data-lucide="save"></i> Save & Submit Attendance
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: EDIT PAST ATTENDANCE LOGS -->
+        <div id="edit-tab" class="tab-pane">
+          <div class="glass-card filter-toolbar">
+            <div class="filter-group">
+              <div class="field">
+                <label><i data-lucide="book-open"></i> Course</label>
+                <select id="edit-course-select" onchange="loadHistoricalRecords()">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="field">
+                <label><i data-lucide="history"></i> Select Past Date</label>
+                <select id="edit-date-select" onchange="loadHistoricalRecords()">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+            </div>
+            <div class="status-summary-badge" id="edit-session-badge">
+              Session Found
+            </div>
+          </div>
+
+          <div class="glass-card table-card">
+            <div class="table-header-title">
+              <h3><i data-lucide="file-edit"></i> Modify Attendance Record</h3>
+              <p>Updates will recalculate overall student percentages and create an audit log entry.</p>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Student Name</th>
+                    <th>Recorded Status</th>
+                    <th>New Status</th>
+                    <th>Modification Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="edit-table-body">
+                  <!-- Dynamic Rows -->
+                </tbody>
+              </table>
+            </div>
+            <div class="table-footer">
+              <span class="text-muted" id="edit-last-modified-info">
+                <i data-lucide="clock"></i> Last updated: Never
+              </span>
+              <button class="btn btn-warning btn-lg" onclick="saveHistoricalEdits()">
+                <i data-lucide="check-circle-2"></i> Update & Recalculate Attendance
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: STUDENT ROSTER & MULTIPLE STUDENTS MANAGEMENT -->
+        <div id="roster-tab" class="tab-pane">
+          <div class="toolbar-secondary">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="roster-search-input" placeholder="Search student roster..." oninput="renderRosterGrid()" />
+            </div>
+            <button class="btn btn-primary" onclick="openAddStudentModal()">
+              <i data-lucide="user-plus"></i> Add New Student
+            </button>
+          </div>
+
+          <div class="student-grid" id="roster-grid">
+            <!-- Student Cards Populated Dynamically -->
+          </div>
+        </div>
+
+        <!-- TAB 4: CLASS ANALYTICS & WARNINGS -->
+        <div id="analytics-tab" class="tab-pane">
+          <div class="analytics-grid">
+            <!-- Overview KPI Cards -->
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-blue"><i data-lucide="users"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="kpi-total-students">0</span>
+                <span class="kpi-label">Total Enrolled Students</span>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-green"><i data-lucide="trending-up"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="kpi-avg-attendance">0%</span>
+                <span class="kpi-label">Class Average Attendance</span>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-red"><i data-lucide="alert-triangle"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="kpi-defaulters-count">0</span>
+                <span class="kpi-label">Shortage / Risk (<75%)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="analytics-charts-row">
+            <div class="glass-card chart-card">
+              <div class="card-header-flex">
+                <h3><i data-lucide="bar-chart"></i> Attendance Trend by Session</h3>
+              </div>
+              <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+              </div>
+            </div>
+
+            <div class="glass-card chart-card">
+              <div class="card-header-flex">
+                <h3><i data-lucide="pie-chart"></i> Attendance Status Distribution</h3>
+              </div>
+              <div class="chart-container">
+                <canvas id="distributionChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- At-Risk Defaulters Section -->
+          <div class="glass-card table-card margin-top-lg">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="text-danger"><i data-lucide="alert-circle"></i> Low Attendance Shortage Warning List (< 75%)</h3>
+                <p>Students listed below are currently ineligible for final examinations due to low attendance.</p>
+              </div>
+              <button class="btn btn-outline-danger" onclick="sendWarningNoticeAll()">
+                <i data-lucide="mail"></i> Notify All Defaulters
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table">
+                <thead>
+                  <tr>
+                    <th>Roll No</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Classes Conducted</th>
+                    <th>Attended</th>
+                    <th>Current %</th>
+                    <th>Required Classes</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="defaulters-table-body">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ======================================================= -->
+      <!-- STUDENT PORTAL SECTION                                  -->
+      <!-- ======================================================= -->
+      <section id="student-section" class="portal-section hidden">
+        
+        <div class="portal-header">
+          <div class="portal-title">
+            <h2 id="student-welcome-title">Student Dashboard</h2>
+            <p class="subtitle" id="student-welcome-subtitle">Track your attendance percentage, subject progress, and eligibility</p>
+          </div>
+        </div>
+
+        <!-- Top Gauge & Stat Summary Row -->
+        <div class="student-overview-row">
+          <!-- Circular Percentage Gauge Card -->
+          <div class="glass-card gauge-card">
+            <div class="gauge-wrapper">
+              <svg class="progress-ring" width="180" height="180">
+                <circle class="progress-ring-bg" stroke="rgba(255, 255, 255, 0.1)" stroke-width="14" fill="transparent" r="74" cx="90" cy="90"/>
+                <circle id="overall-progress-circle" class="progress-ring-stroke" stroke="#10b981" stroke-width="14" stroke-linecap="round" fill="transparent" r="74" cx="90" cy="90" stroke-dasharray="465" stroke-dashoffset="100"/>
+              </svg>
+              <div class="gauge-text">
+                <span id="overall-percent-num" class="percent-num">0%</span>
+                <span class="percent-label">Overall %</span>
+              </div>
+            </div>
+            <div class="gauge-status-badge" id="overall-status-badge">
+              <i data-lucide="shield-check"></i> Eligible for Exams
+            </div>
+          </div>
+
+          <!-- Quick Stats Cards -->
+          <div class="student-kpi-grid">
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-blue"><i data-lucide="book-open"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="student-total-lectures">0</span>
+                <span class="kpi-label">Total Conducted Lectures</span>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-green"><i data-lucide="check-circle"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="student-attended-lectures">0</span>
+                <span class="kpi-label">Attended Lectures</span>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-red"><i data-lucide="x-circle"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="student-absent-lectures">0</span>
+                <span class="kpi-label">Absent Count</span>
+              </div>
+            </div>
+
+            <div class="glass-card kpi-card">
+              <div class="kpi-icon icon-purple"><i data-lucide="award"></i></div>
+              <div class="kpi-data">
+                <span class="kpi-value" id="student-eligibility-status">OK</span>
+                <span class="kpi-label">Examination Status</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subject Breakdown Cards -->
+        <div class="section-heading">
+          <h3><i data-lucide="grid"></i> Course-wise Attendance Breakdown</h3>
+        </div>
+        <div class="subject-cards-grid" id="student-subject-cards">
+          <!-- Dynamic Cards -->
+        </div>
+
+        <!-- Target Attendance Calculator Card -->
+        <div class="glass-card target-calc-card margin-top-lg">
+          <div class="card-header-flex">
+            <div>
+              <h3><i data-lucide="calculator"></i> Attendance Target Calculator</h3>
+              <p>Calculate how many consecutive future lectures you must attend to achieve your desired target percentage.</p>
+            </div>
+          </div>
+
+          <div class="calc-body">
+            <div class="calc-inputs">
+              <div class="field">
+                <label>Select Target Attendance %</label>
+                <div class="target-preset-buttons">
+                  <button class="preset-btn active" onclick="setTargetPercent(75)">75% (Min Criteria)</button>
+                  <button class="preset-btn" onclick="setTargetPercent(80)">80%</button>
+                  <button class="preset-btn" onclick="setTargetPercent(85)">85%</button>
+                  <button class="preset-btn" onclick="setTargetPercent(90)">90%</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="calc-result-box" id="calc-result-box">
+              <div class="calc-result-icon"><i data-lucide="compass"></i></div>
+              <div class="calc-result-text" id="calc-result-text">
+                Calculating recommendation...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personal Timeline Log Table -->
+        <div class="glass-card table-card margin-top-lg">
+          <div class="card-header-flex">
+            <div>
+              <h3><i data-lucide="calendar"></i> Personal Attendance Timeline Log</h3>
+              <p>Date-wise history of your session statuses recorded by faculty</p>
+            </div>
+
+            <div class="filter-group">
+              <select id="student-timeline-course" onchange="renderStudentTimeline()">
+                <option value="ALL">All Subjects</option>
+                <!-- Populated dynamically -->
+              </select>
+              <select id="student-timeline-status" onchange="renderStudentTimeline()">
+                <option value="ALL">All Statuses</option>
+                <option value="Present">Present Only</option>
+                <option value="Absent">Absent Only</option>
+                <option value="Late">Late Only</option>
+                <option value="Excused">Excused Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Course Code & Name</th>
+                  <th>Faculty</th>
+                  <th>Status</th>
+                  <th>Remarks / Notes</th>
+                </tr>
+              </thead>
+              <tbody id="student-timeline-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+  </div>
+
+  <!-- ADD / EDIT STUDENT MODAL -->
+  <div id="student-modal" class="modal-overlay hidden">
+    <div class="glass-card modal-container">
+      <div class="modal-header">
+        <h3 id="modal-title"><i data-lucide="user-plus"></i> Add New Student</h3>
+        <button class="modal-close-btn" onclick="closeStudentModal()"><i data-lucide="x"></i></button>
+      </div>
+      <form id="student-form" onsubmit="handleStudentFormSubmit(event)">
+        <input type="hidden" id="modal-student-id" />
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="modal-student-name" required placeholder="e.g. Eleanor Vance" />
+        </div>
+        <div class="form-group">
+          <label>Roll Number / Student ID</label>
+          <input type="text" id="modal-student-roll" required placeholder="e.g. CS2026-088" />
+        </div>
+        <div class="form-group">
+          <label>Department</label>
+          <select id="modal-student-dept">
+            <option value="Computer Science">Computer Science</option>
+            <option value="Electronics & Comms">Electronics & Comms</option>
+            <option value="Information Tech">Information Tech</option>
+            <option value="Mechanical Eng">Mechanical Eng</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="modal-student-email" required placeholder="e.g. eleanor@university.edu" />
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-ghost" onclick="closeStudentModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i data-lucide="check"></i> Save Student</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- JavaScript Bundle -->
+  <script src="app.js"></script>
+</body>
+</html>
